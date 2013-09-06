@@ -1,0 +1,7 @@
+## Interface: 50200
+## Title: AutoPriceResponder
+## Description: A fully customizable, automatic, whisper responder for price information.
+## Author: Myxini
+## Version: 0.1
+
+AutoPriceResponder.lua
