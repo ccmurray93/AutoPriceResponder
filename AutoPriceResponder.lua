@@ -540,11 +540,11 @@ end
 -- Hide addon whispers from chat frame
 local function HideMsgWhisper(_, event, msg, player)
     if (event == "CHAT_MSG_WHISPER_INFORM") then
-        if string.find(msg,PREFIX) then
+        if msg:sub(1,string.len(PREFIX)) == PREFIX then
             return true
         end
     elseif (event == "CHAT_MSG_WHISPER") then
-        if (msg:sub(1,6) == commandWord.." ") or (msg == commandWord) then
+        if (msg:sub(1,string.len(commandWord)+1) == commandWord.." ") or (msg == commandWord) then
             return true
         end
     end
@@ -561,8 +561,8 @@ end
 function AutoPriceResponder:CHAT_MSG_WHISPER(event,msg,player)
     msg = strtrim(msg)
     local response = ""
-    if (msg:sub(1,6) == commandWord.." ") then
-        local item, itemLink = self:GetItemNameAndLink(strtrim(msg:sub(7,-1)))
+    if (msg:sub(1,string.len(commandWord)+1) == commandWord.." ") then
+        local item, itemLink = self:GetItemNameAndLink(strtrim(msg:sub(string.len(commandWord)+1,-1)))
         local itemLower = item:lower()
         if (itemLower == "") then
             response = helpMsg
@@ -581,7 +581,7 @@ function AutoPriceResponder:CHAT_MSG_WHISPER(event,msg,player)
                             end
                             itemName = entry.link
                         end
-                        response = list.prefix.." "..itemName.." "..entry.price..unit
+                        response = list.prefix.." "..itemName.." for "..entry.price..unit
                     end
                     if found then break end
                 end
@@ -589,10 +589,10 @@ function AutoPriceResponder:CHAT_MSG_WHISPER(event,msg,player)
             end
             if not found then
                 local itemName = itemLink == nil and item or itemLink
-                response = "Sorry, I'm not currently buying/selling \""..itemName.."\"."
+                response = "Sorry, I'm not buying or selling \""..itemName.."\" at the moment."
             end
         end
-    elseif (msg:sub(1,5) == commandWord) then
+    elseif (msg:sub(1,string.len(commandWord)) == commandWord) then
         response = helpMsg
     end
     if (response ~= "") then
