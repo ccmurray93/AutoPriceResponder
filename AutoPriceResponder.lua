@@ -1,10 +1,6 @@
 -- Create main object and load AceConsole so we can use console commands
 AutoPriceResponder = LibStub("AceAddon-3.0"):NewAddon("AutoPriceResponder", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0")
 
-
-
-
-
 AutoPriceResponder.selectedEntryColor = "|cffffff00"
 AutoPriceResponder.optionsPanelHeight = 150
 
@@ -12,10 +8,8 @@ AutoPriceResponder.selectedOptionsFrameText = nil
 AutoPriceResponder.selectedOptionsFrameList = nil
 
 local commandWord = "price"
-
 local PREFIX = "[APR]"
 local helpMsg = "Use the format `price [item name/link]` to get pricing information."
-
 
 -- Create our minimap icon
 AutoPriceResponder.AutoPriceResponderLDB = LibStub("LibDataBroker-1.1"):NewDataObject("AutoPriceResponderDO", {
@@ -35,7 +29,6 @@ function AutoPriceResponder:HandleIconClick(button)
     InterfaceOptionsFrame_OpenToCategory(self.priceOptionsFrame)
     InterfaceOptionsFrame_OpenToCategory(self.priceOptionsFrame)
 end
-
 
 AutoPriceResponder.defaults = {
     profile = {
@@ -76,10 +69,6 @@ AutoPriceResponder.defaults = {
     },
 }
 
-
-
-
-
 function AutoPriceResponder:OnInitialize()
     -- Create our database with default values
     self.db = LibStub("AceDB-3.0"):New("AutoPriceResponderDB", self.defaults);
@@ -93,7 +82,6 @@ function AutoPriceResponder:OnInitialize()
     -- Register chat commands
     self:RegisterChatCommand("apr", "HandleChatMessageCommands")
     self:RegisterChatCommand("AutoPriceResponder", "HandleChatMessageCommands")
-    -- self:RegisterChatCommand("autopriceresponder", "HandleChatMessageCommands")
 
     -- Register our addon message prefix
     RegisterAddonMessagePrefix(PREFIX)
@@ -101,7 +89,6 @@ end
 
 -- Called when the addon is enabled
 function AutoPriceResponder:OnEnable()
-    
     -- Notify user that AutoPriceResponder is enabled, give options command
     self:Print("Daily Checklist enabled.  Use '/apr' to open the manager.")
     
@@ -110,16 +97,12 @@ function AutoPriceResponder:OnEnable()
     
     -- Create options frame
     self:CreateOptionsFrame()
-    
 end
-
 
 function AutoPriceResponder:HandleChatMessageCommands(msg)
     InterfaceOptionsFrame_OpenToCategory(self.priceOptionsFrame)
     InterfaceOptionsFrame_OpenToCategory(self.priceOptionsFrame)
 end
-
-
 
 -- Create the options frame under the WoW interface->addons menu
 function AutoPriceResponder:CreateOptionsFrame()
@@ -182,7 +165,6 @@ function AutoPriceResponder:CreateOptionsFrame()
         },
     })
     self.priceConfigFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("AutoPriceResponder: Options", "Options", "AutoPriceResponder")
-
 
     local priceOptionsEntryLabel = self.priceOptionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     priceOptionsEntryLabel:SetPoint("TOPLEFT", 10, -10)
@@ -311,7 +293,6 @@ function AutoPriceResponder:CreateOptionsFrame()
         AutoPriceResponder:UpdateEntriesForScrollFrame()
     end)
     
-
     -- Create empty tables
     self.priceOptionsFrameText = {}
     self.priceOptionsFrameClickable = {}
@@ -379,10 +360,8 @@ function AutoPriceResponder:CreateOptionsFrame()
     priceOptionsDeleteLabel:SetPoint("BOTTOMRIGHT", -175, 5)
     priceOptionsDeleteLabel:SetJustifyH("LEFT")
     priceOptionsDeleteLabel:SetHeight(40)
-    priceOptionsDeleteLabel:SetText("Select an entry from the list by clicking the white text and use the delete button to remove it, or the edit button to edit it.")
-    
+    priceOptionsDeleteLabel:SetText("Select an entry from the list by clicking the white text and use the delete button to remove it, or the edit button to edit it.")    
 end
-
 
 -- Create new entry if it does not exist and update entry if it does exist
 function AutoPriceResponder:CreateListEntry()
@@ -565,7 +544,7 @@ local function HideMsgWhisper(_, event, msg, player)
             return true
         end
     elseif (event == "CHAT_MSG_WHISPER") then
-        if (msg:sub(1,6) == commandWord.." ") then
+        if (msg:sub(1,6) == commandWord.." ") or (msg == commandWord) then
             return true
         end
     end
