@@ -9,7 +9,8 @@ AutoPriceResponder.selectedOptionsFrameList = nil
 
 local commandWord = "price"
 local PREFIX = "[APR]"
-local helpMsg = "Use the format `price [item name/link]` to get pricing information."
+local helpMsg = "Use the format `price [item name/link]` to get pricing information for a specific item. Use `price commands` for a list of commands."
+local commandMsg = "Commands: `price [item name/link]` to get pricing information; `price buyList` for what I'm buying; `price sellList` for what I'm selling."
 
 -- Create our minimap icon
 AutoPriceResponder.AutoPriceResponderLDB = LibStub("LibDataBroker-1.1"):NewDataObject("AutoPriceResponderDO", {
@@ -558,6 +559,36 @@ function AutoPriceResponder:GetItemNameAndLink(item)
     return itemName == nil and item or itemName, itemLink
 end
 
+-- Returns a table of response strings of what is in the listName list
+function AutoPriceResponder:GetList(listName)
+    -- print("Generating WTB List")
+    local response = {}
+    local msg = listName.." "
+    local msgCount = 1
+    for listId,list in pairs(self.db.profile.lists) do
+        if (list.name == listName) then
+            -- print("WTB List found, generating msg")
+            for entryId,entry in pairs(list.entries) do
+                -- local unit = entry.unit == "" and "" or "/"..entry.unit
+                -- local buyString = entry.name..", "..entry.price..unit.."; "
+                local buyString = entry.name.."; "
+                if (PREFIX:len() + msg:len() + buyString:len() > 257) then
+                    -- msg will be too long, split it into another line
+                    response[msgCount] = msg:sub(1,-3)
+                    msgCount = msgCount + 1
+                    msg = ""
+                end
+                msg = msg .. buyString
+                -- print("Msg: "..msg)
+            end
+            response[msgCount] = msg:sub(1,-3)
+        end
+    end
+
+
+    return response
+end
+
 -- Processes incoming whispers for command word
 function AutoPriceResponder:CHAT_MSG_WHISPER(event,msg,player)
     msg = strtrim(msg)
@@ -567,6 +598,16 @@ function AutoPriceResponder:CHAT_MSG_WHISPER(event,msg,player)
         local itemLower = item:lower()
         if (itemLower == "") then
             response = helpMsg
+        elseif (itemLower == "help") then
+            -- help command
+            response = helpMsg
+        elseif (itemLower == "commands") then
+            -- list of commands
+            response = commandMsg
+        elseif (itemLower == "buylist") then
+            response = AutoPriceResponder:GetList("WTB")
+        elseif (itemLower == "selllist") then
+            response = AutoPriceResponder:GetList("WTS")
         else
             local found = false
             for listId,list in pairs(self.db.profile.lists) do
@@ -574,13 +615,22 @@ function AutoPriceResponder:CHAT_MSG_WHISPER(event,msg,player)
                     local entryNameLower = entry.name:lower()
                     if (itemLower == entryNameLower) then
                         found = true
-                        local itemName = entry.name
+                        local itemName = ""
                         local unit = entry.unit == "" and "" or "/"..entry.unit
-                        if (itemLink ~= nil or entry.link ~= nil) then
-                            if (entry.link == nil) then
-                                entry.link = itemLink
-                            end
+                        -- if (itemLink ~= nil or entry.link ~= nil) then
+                        --     if (entry.link == nil) then
+                        --         entry.link = itemLink
+                        --     end
+                        --     itemName = entry.link
+                        -- end
+                        if (itemLink ~= nil and entry.link == nil) then
+                            -- generated itemLink, but none saved, so save it
+                            entry.link = itemLink
+                            itemName = itemLink
+                        elseif (entry.link ~= nil) then
                             itemName = entry.link
+                        else
+                            itemName = entry.name
                         end
                         response = list.prefix.." "..itemName.." for "..entry.price..unit
                     end
@@ -590,14 +640,20 @@ function AutoPriceResponder:CHAT_MSG_WHISPER(event,msg,player)
             end
             if not found then
                 local itemName = itemLink == nil and item or itemLink
-                response = "Sorry, I'm not buying or selling \""..itemName.."\" at the moment."
+                response = "Sorry, I'm not buying or selling \""..itemName.."\" at the moment, or the item/command name was mispelled."
             end
         end
     elseif (msg:sub(1,string.len(commandWord)) == commandWord) then
         response = helpMsg
     end
     if (response ~= "") then
-        SendChatMessage(PREFIX.." "..response, "WHISPER", nil, player)
+        if (type(response) == "table") then
+            for k,msg in pairs(response) do
+                SendChatMessage(PREFIX.." "..msg, "WHISPER", nil, player)
+            end
+        else
+            SendChatMessage(PREFIX.." "..response, "WHISPER", nil, player)
+        end
     end
 end
 
