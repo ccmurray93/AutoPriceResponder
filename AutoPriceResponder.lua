@@ -15,7 +15,8 @@ local helpMsg = "Use the format `price [item name/link]` to get pricing informat
 AutoPriceResponder.AutoPriceResponderLDB = LibStub("LibDataBroker-1.1"):NewDataObject("AutoPriceResponderDO", {
     type = "data source",
     text = "AutoPriceResponder",
-    icon = "Interface\\RAIDFRAME\\ReadyCheck-Ready.blp",
+    -- icon = "Interface\\RAIDFRAME\\ReadyCheck-Ready.blp",
+    icon = "Interface\\Icons\\Achievement_GuildPerk_CashFlow_Rank2",
     OnTooltipShow = function(tooltip)
         tooltip:AddLine("AutoPriceResponder")
         tooltip:AddLine("|cffffff00" .. "Click to show options")
