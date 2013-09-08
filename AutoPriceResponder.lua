@@ -4,6 +4,19 @@ AutoPriceResponder = LibStub("AceAddon-3.0"):NewAddon("AutoPriceResponder", "Ace
 
 
 
+
+AutoPriceResponder.selectedEntryColor = "|cffffff00"
+AutoPriceResponder.optionsPanelHeight = 150
+
+AutoPriceResponder.selectedOptionsFrameText = nil
+AutoPriceResponder.selectedOptionsFrameList = nil
+
+local commandWord = "price"
+
+local PREFIX = "[APR]"
+local helpMsg = "Use the format `price [item name/link]` to get pricing information."
+
+
 -- Create our minimap icon
 AutoPriceResponder.AutoPriceResponderLDB = LibStub("LibDataBroker-1.1"):NewDataObject("AutoPriceResponderDO", {
     type = "data source",
@@ -63,41 +76,34 @@ AutoPriceResponder.defaults = {
     },
 }
 
-AutoPriceResponder.selectedEntryColor = "|cffFFB90F"
-AutoPriceResponder.optionsPanelHeight = 300
 
-AutoPriceResponder.selectedOptionsFrameText = nil
-AutoPriceResponder.selectedOptionsFrameList = nil
 
 
 
 function AutoPriceResponder:OnInitialize()
     -- Create our database with default values
     self.db = LibStub("AceDB-3.0"):New("AutoPriceResponderDB", self.defaults);
-    -- self.db.RegisterCallback(self, "OnProfileChanged", "RefreshEverything")
-    -- self.db.RegisterCallback(self, "OnProfileCopied", "RefreshEverything")
-    -- self.db.RegisterCallback(self, "OnProfileReset", "RefreshEverything")
+    self.db.RegisterCallback(self, "OnProfileChanged", "RefreshEverything")
+    self.db.RegisterCallback(self, "OnProfileCopied", "RefreshEverything")
+    self.db.RegisterCallback(self, "OnProfileReset", "RefreshEverything")
     
     -- Register our minimap icon
     self.icon:Register("AutoPriceResponderDO", self.AutoPriceResponderLDB, self.db.profile.icon)
     
-    -- Register our addon message prefix
-    -- RegisterAddonMessagePrefix(PREFIX)
-    
     -- Register chat commands
-    -- self:RegisterChatCommand("dcl", "HandleChatMessageCommands")
-    -- self:RegisterChatCommand("AutoPriceResponder", "HandleChatMessageCommands")
+    self:RegisterChatCommand("apr", "HandleChatMessageCommands")
+    self:RegisterChatCommand("AutoPriceResponder", "HandleChatMessageCommands")
+    -- self:RegisterChatCommand("autopriceresponder", "HandleChatMessageCommands")
+
+    -- Register our addon message prefix
+    RegisterAddonMessagePrefix(PREFIX)
 end
 
 -- Called when the addon is enabled
 function AutoPriceResponder:OnEnable()
     
-    -- Notify user that AutoPriceResponder is enabled, give config command
-    -- self:Print("Daily Checklist enabled.  Use '/dcl' to open the manager.")
-    
-    -- self:CheckCurrentDateAndTime(true)
-    
-    -- self:ResetTimer()
+    -- Notify user that AutoPriceResponder is enabled, give options command
+    self:Print("Daily Checklist enabled.  Use '/apr' to open the manager.")
     
     -- Initialize number of entries that will fit in interface options panel
     self.maxEntries = math.floor((InterfaceOptionsFramePanelContainer:GetHeight() - self.optionsPanelHeight) / 20)
@@ -107,6 +113,11 @@ function AutoPriceResponder:OnEnable()
     
 end
 
+
+function AutoPriceResponder:HandleChatMessageCommands(msg)
+    InterfaceOptionsFrame_OpenToCategory(self.priceOptionsFrame)
+    InterfaceOptionsFrame_OpenToCategory(self.priceOptionsFrame)
+end
 
 
 
@@ -118,6 +129,59 @@ function AutoPriceResponder:CreateOptionsFrame()
     self.priceOptionsFrame:SetAllPoints(InterfaceOptionsFramePanelContainer)
     self.priceOptionsFrame:Hide()
     InterfaceOptions_AddCategory(self.priceOptionsFrame)
+
+    -- Create addon profiles options frame
+    self.priceProfilesOptions = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
+    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("AutoPriceResponder: "..self.priceProfilesOptions.name, self.priceProfilesOptions)
+    self.priceProfilesFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("AutoPriceResponder: "..self.priceProfilesOptions.name, self.priceProfilesOptions.name, "AutoPriceResponder")  
+    
+    local function getOpt(info)
+        return AutoPriceResponder.db.profile[info[#info]]
+    end
+    
+    local function setOpt(info, value)
+        AutoPriceResponder.db.profile[info[#info]] = value
+        return AutoPriceResponder.db.profile[info[#info]]
+    end
+
+    -- Create options frame
+    LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("AutoPriceResponder: Options", {
+        type = "group",
+        name = "Options",
+        args = {
+            general = {
+                type = "group",
+                inline = true,
+                name = "",
+                args = {
+                    minimap = {
+                        type = "group",
+                        inline = true,
+                        name = "Minimap Icon",
+                        order = 30,
+                        args = {
+                            iconLabel = {
+                                type = "description",
+                                name = "Requires UI restart to take effect",
+                                order = 10
+                            },
+                            icon = {
+                                type = "toggle",
+                                name = "Hide Minimap Icon",
+                                order = 20,
+                                get = function(info) return AutoPriceResponder.db.profile.icon.hide end,
+                                set = function(info, value)
+                                    AutoPriceResponder.db.profile.icon.hide = value
+                                end,
+                            }
+                        },
+                    },
+
+                },
+            },
+        },
+    })
+    self.priceConfigFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("AutoPriceResponder: Options", "Options", "AutoPriceResponder")
 
 
     local priceOptionsEntryLabel = self.priceOptionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -132,7 +196,7 @@ function AutoPriceResponder:CreateOptionsFrame()
     priceOptionsEntryTextFieldLabel:SetPoint("TOPRIGHT", 0, -30)
     priceOptionsEntryTextFieldLabel:SetJustifyH("LEFT")
     priceOptionsEntryTextFieldLabel:SetHeight(18)
-    priceOptionsEntryTextFieldLabel:SetText("Create a new entry by filling out the price information. Output format is `item: price[/unit]`.")
+    priceOptionsEntryTextFieldLabel:SetText("Create a new entry by filling out the price information. Output format is `item price[/unit]`.")
 
     --[[ Add entry creation form to options frame ]]--
     -- Add item name input label
@@ -180,16 +244,24 @@ function AutoPriceResponder:CreateOptionsFrame()
     -- Add item create button
     self.priceOptionsEntryFieldsButton = CreateFrame("Button",  nil, self.priceOptionsFrame, "UIPanelButtonTemplate")
     self.priceOptionsEntryFieldsButton:SetSize(60, 24)
-    self.priceOptionsEntryFieldsButton:SetPoint("TOPLEFT", 540, -48)
+    self.priceOptionsEntryFieldsButton:SetPoint("TOPRIGHT", -15, -48)
     self.priceOptionsEntryFieldsButton:SetText("Create")
     self.priceOptionsEntryFieldsButton:SetScript("OnClick", function(frame)
         AutoPriceResponder:CreateListEntry()
+    end)
+
+    -- Add clear button
+    self.priceOptionsEntryFieldsButton = CreateFrame("Button",  nil, self.priceOptionsFrame, "UIPanelButtonTemplate")
+    self.priceOptionsEntryFieldsButton:SetSize(60, 24)
+    self.priceOptionsEntryFieldsButton:SetPoint("TOPRIGHT", -15, -73)
+    self.priceOptionsEntryFieldsButton:SetText("Clear")
+    self.priceOptionsEntryFieldsButton:SetScript("OnClick", function(frame)
+        AutoPriceResponder:ClearEditBoxes()
     end)
     
     -- Add wtb/s list dropdown
     self.priceOptionsListDropDown = CreateFrame("Button",  "PriceOptionsListDropDown", self.priceOptionsFrame, "UIDropDownMenuTemplate")
     self.priceOptionsListDropDown:SetPoint("TOPLEFT", self.priceOptionsFrame, "TOPLEFT", 0, -46)
-    -- self.priceOptionsListDropDown:SetSize(30,28)
     self.priceOptionsListDropDown:Show()
     
     -- Initialize list drop down menu
@@ -216,9 +288,8 @@ function AutoPriceResponder:CreateOptionsFrame()
             end
         end
     )
-    -- UIDropDownMenu_SetWidth(self.priceOptionsListDropDown, 200);
     UIDropDownMenu_SetWidth(self.priceOptionsListDropDown, 50);
-    UIDropDownMenu_SetButtonWidth(self.priceOptionsListDropDown, 224)
+    UIDropDownMenu_SetButtonWidth(self.priceOptionsListDropDown, 70)
     UIDropDownMenu_SetSelectedID(self.priceOptionsListDropDown, 1)
     UIDropDownMenu_JustifyText(self.priceOptionsListDropDown, "LEFT")
     
@@ -231,8 +302,7 @@ function AutoPriceResponder:CreateOptionsFrame()
     self.priceOptionsFrameScroll = CreateFrame("ScrollFrame", "priceOptionsFrameScroll", self.priceOptionsFrame, "FauxScrollFrameTemplate")
     local sizeX, sizeY = self.priceOptionsFrame:GetSize()
     self.priceOptionsFrameScroll:SetSize(sizeX-40, sizeY - self.optionsPanelHeight )
-    -- self.priceOptionsFrameScroll:SetPoint("CENTER", -30, -95)
-    self.priceOptionsFrameScroll:SetPoint("TOPLEFT",10, -95)
+    self.priceOptionsFrameScroll:SetPoint("TOPLEFT",10, -100)
     self.priceOptionsFrameScroll:SetScript("OnVerticalScroll", function(self, offset) FauxScrollFrame_OnVerticalScroll(self, offset, 20, function()  
             AutoPriceResponder:UpdateEntriesForScrollFrame()
         end) 
@@ -242,31 +312,15 @@ function AutoPriceResponder:CreateOptionsFrame()
     end)
     
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     -- Create empty tables
     self.priceOptionsFrameText = {}
     self.priceOptionsFrameClickable = {}
 
-    -- Set up vertical offset for checkbox list
-    local offset = self.optionsPanelHeight - 200
+    -- Set up vertical offset for the list
+    local offset = self.optionsPanelHeight - 50
     
-    -- Create a set amount of checkboxes and labels for reuse on the scrollable frame
+    -- Create a set amount of labels for reuse on the scrollable frame
     for i=1,self.maxEntries do
-
-        
         self.priceOptionsFrameClickable[i] = CreateFrame("Frame", "ClickableFrame"..i, self.priceOptionsFrame)
         self.priceOptionsFrameClickable[i]:SetPoint("TOPLEFT", 20, -offset)
         self.priceOptionsFrameClickable[i]:SetWidth(255)
@@ -288,56 +342,62 @@ function AutoPriceResponder:CreateOptionsFrame()
         end)
         
         self.priceOptionsFrameText[i] = self.priceOptionsFrame:CreateFontString(nil, "OVERLAY", "ChatFontNormal")
-        self.priceOptionsFrameText[i]:SetPoint("TOPLEFT", 70, -offset - 5)
+        self.priceOptionsFrameText[i]:SetPoint("TOPLEFT", 20, -offset - 5)
+        self.priceOptionsFrameText[i]:SetHeight(23)
         self.priceOptionsFrameText[i]:SetText("")
         self.priceOptionsFrameText[i]:Hide()
 
         offset = offset + 20
     end
 
-
     -- Add selected list title
     self.priceOptionsTitle = self.priceOptionsFrame:CreateFontString("OptionsTitleText", nil, "GameFontNormalLarge")
-    self.priceOptionsTitle:SetPoint("TOPLEFT", self.priceOptionsFrame, "TOPLEFT", 10, -85)
+    self.priceOptionsTitle:SetPoint("TOPLEFT", self.priceOptionsFrame, "TOPLEFT", 10, -90)
     self.priceOptionsTitle:Show()
-
-
-
 
     -- Create delete button
     self.priceOptionsFrameDelete = CreateFrame("Button",  nil, self.priceOptionsFrame, "UIPanelButtonTemplate")
-    self.priceOptionsFrameDelete:SetPoint("BOTTOMRIGHT", -160, 10)
+    self.priceOptionsFrameDelete:SetPoint("BOTTOMRIGHT", -15, 10)
     self.priceOptionsFrameDelete:SetSize(70, 24)
     self.priceOptionsFrameDelete:SetText("Delete")
     self.priceOptionsFrameDelete:SetScript("OnClick", function(self) 
         AutoPriceResponder:DeleteSelectedEntry()
     end)
 
+    -- Create edit button
+    self.priceOptionsFrameEdit = CreateFrame("Button",  nil, self.priceOptionsFrame, "UIPanelButtonTemplate")
+    self.priceOptionsFrameEdit:SetPoint("BOTTOMRIGHT", -90, 10)
+    self.priceOptionsFrameEdit:SetSize(70, 24)
+    self.priceOptionsFrameEdit:SetText("Edit")
+    self.priceOptionsFrameEdit:SetScript("OnClick", function(self) 
+        AutoPriceResponder:EditSelectedEntry()
+    end)
 
-
-
-
+    -- information on editing/deleting
+    local priceOptionsDeleteLabel = self.priceOptionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    priceOptionsDeleteLabel:SetPoint("BOTTOMLEFT", 10, 5)
+    priceOptionsDeleteLabel:SetPoint("BOTTOMRIGHT", -175, 5)
+    priceOptionsDeleteLabel:SetJustifyH("LEFT")
+    priceOptionsDeleteLabel:SetHeight(40)
+    priceOptionsDeleteLabel:SetText("Select an entry from the list by clicking the white text and use the delete button to remove it, or the edit button to edit it.")
+    
 end
 
 
-
-
--- Create new entry if it does not exist and update checklist frame
+-- Create new entry if it does not exist and update entry if it does exist
 function AutoPriceResponder:CreateListEntry()
-
     if not self.selectedOptionsFrameList then
         return
     end
     
     local listId = self.selectedOptionsFrameList
     
-    -- Grab text from editboxes
+    -- Grab text from editboxes and make an entry object
     local newEntry = {
         name = strtrim(self.priceOptionsNameTextField:GetText()),
         price = strtrim(self.priceOptionsPriceTextField:GetText()),
         unit = strtrim(self.priceOptionsUnitTextField:GetText()),
-    }
-
+    }    
 
     -- Discard if name or price was empty
     if newEntry.name == "" or newEntry.price == "" then
@@ -366,33 +426,19 @@ function AutoPriceResponder:CreateListEntry()
         self.db.profile.lists[listId].entries[index] = newEntry
     end
     
-    -- self.db.profile.lists[listId].completed = false
-    -- if self.priceFrame.lists[listId] and self.priceFrame.lists[listId].checkbox then
-    --     -- self.priceFrame.lists[listId].checkbox:SetChecked(false)
-    -- end
-    
     -- Update scroll frame
     self:UpdateEntriesForScrollFrame()
-    
-    -- Update UI Checklist
-    -- self:UpdateEntryOnChecklistFrame(listId, index, true)
-    
-    -- Update positions because of visibility change
-    -- self:UpdateEntryPositionsOnChecklistFrame()
-    
-    -- Update visibility change
-    -- self:UpdateVisibilityForListOnChecklistFrame(listId, self.db.profile.hideCompleted)
     
     -- Reset text for editbox
     self.priceOptionsNameTextField:SetText("")
     self.priceOptionsPriceTextField:SetText("")
     self.priceOptionsUnitTextField:SetText("")
-    
 end
 
 -- Creates a new list entry in the database using the current fields
 function AutoPriceResponder:CreateDatabaseEntry(name, price, unit, link)
     link = link == nil and "" or link
+    unit = unit == nil and "" or unit
     local entry = {
         name = name,
         link = link,
@@ -401,9 +447,6 @@ function AutoPriceResponder:CreateDatabaseEntry(name, price, unit, link)
     }
     return entry
 end
-
-
-
 
 -- Removes the selected entry from the options frame and database
 function AutoPriceResponder:DeleteSelectedEntry()
@@ -418,20 +461,27 @@ function AutoPriceResponder:DeleteSelectedEntry()
     self:UpdateEntriesForScrollFrame()
 end
 
+-- Adds the selected entries data to the edit boxes so it is easy to edit
+function AutoPriceResponder:EditSelectedEntry()
+    -- If nothing is selected, do nothing
+    if not self.selectedOptionsFrameList or not self.selectedOptionsFrameText then
+        return 
+    end
 
+    local listId = self.selectedOptionsFrameList
+    local entryId = self.priceOptionsFrameText[self.selectedOptionsFrameText].entryId
+    local entry = self.db.profile.lists[listId].entries[entryId]
+    self.priceOptionsNameTextField:SetText(entry.name)
+    self.priceOptionsPriceTextField:SetText(entry.price)
+    self.priceOptionsUnitTextField:SetText(entry.unit)
+end
 
-
-
-
-
-
-
-
-
-
-
-
-
+-- Clears the edit boxes
+function AutoPriceResponder:ClearEditBoxes()
+    self.priceOptionsNameTextField:SetText("")
+    self.priceOptionsPriceTextField:SetText("")
+    self.priceOptionsUnitTextField:SetText("")
+end
 
 -- Update list title text
 function AutoPriceResponder:UpdateListTitleText()
@@ -439,7 +489,6 @@ function AutoPriceResponder:UpdateListTitleText()
     local listTitle = self.db.profile.lists[listId].name
     self.priceOptionsTitle:SetText(listTitle.." Entries")
 end
-
 
 -- Update entries in dropdown list entries scroll frame when scrollbar moves
 function AutoPriceResponder:UpdateEntriesForScrollFrame()
@@ -477,7 +526,6 @@ function AutoPriceResponder:UpdateEntriesForScrollFrame()
     end
     
     for i = numberOfRows, self.maxEntries do
-        -- self.priceOptionsFrameCheckboxes[i]:Hide()
         self.priceOptionsFrameText[i]:Hide()
     end
     
@@ -485,6 +533,19 @@ function AutoPriceResponder:UpdateEntriesForScrollFrame()
     FauxScrollFrame_Update(self.priceOptionsFrameScroll, numberOfEntries, self.maxEntries, 20, nil, nil, nil, nil, nil, nil, true)
 end
 
+-- Called when profile changes, reloads options, list dropdown, manager, and checklist
+function AutoPriceResponder:RefreshEverything()
+    -- Reload list dropdown
+    ToggleDropDownMenu(1, nil, self.priceOptionsListDropDown)
+    
+    CloseDropDownMenus()
+    
+    UIDropDownMenu_SetSelectedID(self.priceOptionsListDropDown, 1)
+    self.selectedOptionsFrameList = 1
+    
+    -- Reload list manager
+    self:UpdateEntriesForScrollFrame()    
+end
 
 -- Resets the color of the previously selected options text
 function AutoPriceResponder:ResetSelectedOptionsFrameText()
@@ -497,50 +558,27 @@ function AutoPriceResponder:ResetSelectedOptionsFrameText()
     self.selectedOptionsFrameText = nil
 end
 
-
-
-local commandWord = "price"
-
-local addonId    = "[APR]"
-
-
-
-
-local function hideMessage(_, event, msg, player)
+-- Hide addon whispers from chat frame
+local function HideMsgWhisper(_, event, msg, player)
     if (event == "CHAT_MSG_WHISPER_INFORM") then
-        if string.find(msg,addonId) then
-            -- print("Out going whisper blocked - "..msg)
+        if string.find(msg,PREFIX) then
             return true
         end
     elseif (event == "CHAT_MSG_WHISPER") then
         if (msg:sub(1,6) == commandWord.." ") then
-            -- print("Incoming whisper blocked - "..msg)
             return true
         end
     end
 end
 
-
-
-
---[[ Add Filters ]]--
-ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER", hideMessage)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER_INFORM", hideMessage)
-
-
-
+-- Returns an items name and ingame link from given item (can be item name/link.)
 function AutoPriceResponder:GetItemNameAndLink(item)
     item = strtrim(item)
     local itemName, itemLink = GetItemInfo(item)
     return itemName == nil and item or itemName, itemLink
 end
 
-
-
-
-
-local helpMsg = "Use the format `price [item name/link]` to get pricing information."
-
+-- Processes incoming whispers for command word
 function AutoPriceResponder:CHAT_MSG_WHISPER(event,msg,player)
     msg = strtrim(msg)
     local response = ""
@@ -578,8 +616,12 @@ function AutoPriceResponder:CHAT_MSG_WHISPER(event,msg,player)
     elseif (msg:sub(1,5) == commandWord) then
         response = helpMsg
     end
-    SendChatMessage(addonId.." "..response, "WHISPER", nil, player)
-
+    if (response ~= "") then
+        SendChatMessage(PREFIX.." "..response, "WHISPER", nil, player)
+    end
 end
 
+--[[ Add Filters ]]--
 AutoPriceResponder:RegisterEvent("CHAT_MSG_WHISPER")
+ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER", HideMsgWhisper)
+ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER_INFORM", HideMsgWhisper)
