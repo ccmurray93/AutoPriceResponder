@@ -92,7 +92,7 @@ end
 -- Called when the addon is enabled
 function AutoPriceResponder:OnEnable()
     -- Notify user that AutoPriceResponder is enabled, give options command
-    self:Print("Daily Checklist enabled.  Use '/apr' to open the manager.")
+    self:Print("Auto Price Responder enabled.  Use '/apr' to open the options.")
     
     -- Initialize number of entries that will fit in interface options panel
     self.maxEntries = math.floor((InterfaceOptionsFramePanelContainer:GetHeight() - self.optionsPanelHeight) / 20)
